@@ -16,7 +16,7 @@
 
 QQ 邮箱开启步骤（163 类似）：
 1. 登录 mail.qq.com → **设置 → 账号**；
-2. 往下找 **「POP3/IMAP/SMTP…服务」** → 开启 **SMTP 服务**；lxiydvjpvwirgchc
+2. 往下找 **「POP3/IMAP/SMTP…服务」** → 开启 **SMTP 服务**；
 3. 按提示发短信验证 → 得到一串 **16 位授权码**（不是 QQ 密码！记下来，这就是 SMTP_PASS）。
 
 ### 2. DeepSeek API Key
