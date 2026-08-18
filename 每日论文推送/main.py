@@ -17,6 +17,8 @@ from datetime import date
 from email.message import EmailMessage
 from pathlib import Path
 
+import time
+
 import requests
 
 # Windows 本地控制台默认 GBK，打印 emoji 会报错，统一转 UTF-8
@@ -27,6 +29,7 @@ BASE = Path(__file__).resolve().parent
 STATE_PATH = BASE / "state.json"
 ARXIV_API = "http://export.arxiv.org/api/query"
 S2_API = "https://api.semanticscholar.org/graph/v1/paper/search"
+CROSSREF_API = "https://api.crossref.org/works"
 DEEPSEEK_API = "https://api.deepseek.com/chat/completions"
 
 CATS = ["rendering", "gaussian", "reconstruction"]
@@ -42,36 +45,67 @@ def log(msg):
 
 def arxiv_fetch(arxiv_id):
     """按 arXiv ID 拿标题和摘要。失败返回 (None, None)。"""
-    try:
-        r = requests.get(ARXIV_API, params={"id_list": arxiv_id, "max_results": 1}, timeout=30)
-        r.raise_for_status()
-        ns = {"a": "http://www.w3.org/2005/Atom"}
-        entry = ET.fromstring(r.text).find("a:entry", ns)
-        if entry is None:
-            return None, None
-        title = " ".join(entry.find("a:title", ns).text.split())
-        summary = " ".join(entry.find("a:summary", ns).text.split())
-        return title, summary
-    except Exception as e:
-        log(f"[warn] arXiv 抓取失败 ({arxiv_id}): {e}")
-        return None, None
+    for attempt in range(2):
+        try:
+            r = requests.get(ARXIV_API, params={"id_list": arxiv_id, "max_results": 1}, timeout=30)
+            r.raise_for_status()
+            ns = {"a": "http://www.w3.org/2005/Atom"}
+            entry = ET.fromstring(r.text).find("a:entry", ns)
+            if entry is None:
+                return None, None
+            title = " ".join(entry.find("a:title", ns).text.split())
+            summary = " ".join(entry.find("a:summary", ns).text.split())
+            return title, summary
+        except Exception as e:
+            log(f"[warn] arXiv 抓取失败第{attempt+1}次 ({arxiv_id}): {e}")
+            time.sleep(3)
+    return None, None
 
 
 def s2_fetch(title_query):
-    """按标题在 Semantic Scholar 搜索（老论文没有 arXiv 时的兜底）。"""
+    """按标题在 Semantic Scholar 搜索（老论文没有 arXiv 时的兜底）。带重试。"""
+    for attempt in range(3):
+        try:
+            r = requests.get(S2_API, params={
+                "query": title_query, "limit": 1,
+                "fields": "title,abstract,year,venue,url",
+            }, timeout=30)
+            if r.status_code == 429:  # 限流，等一会儿重试
+                log(f"[warn] Semantic Scholar 限流(429)，第{attempt+1}次，等待重试")
+                time.sleep(8 * (attempt + 1))
+                continue
+            r.raise_for_status()
+            data = r.json().get("data") or []
+            if not data:
+                return None, None, None
+            p = data[0]
+            return p.get("title"), p.get("abstract"), p.get("url")
+        except Exception as e:
+            log(f"[warn] Semantic Scholar 搜索失败第{attempt+1}次: {e}")
+            time.sleep(5)
+    return None, None, None
+
+
+def crossref_fetch(title_query):
+    """按标题在 Crossref 搜索（老论文的 DOI 兜底，免费且不限流）。"""
     try:
-        r = requests.get(S2_API, params={
-            "query": title_query, "limit": 1,
-            "fields": "title,abstract,year,venue,url",
-        }, timeout=30)
+        r = requests.get(CROSSREF_API, params={
+            "query.bibliographic": title_query, "rows": 1,
+        }, headers={"User-Agent": "daily-paper-bot/1.0 (mailto:blencatlar@outlook.com)"}, timeout=30)
         r.raise_for_status()
-        data = r.json().get("data") or []
-        if not data:
+        items = r.json().get("message", {}).get("items", [])
+        if not items:
             return None, None, None
-        p = data[0]
-        return p.get("title"), p.get("abstract"), p.get("url")
+        it = items[0]
+        title = (it.get("title") or [None])[0]
+        abstract = it.get("abstract") or ""
+        abstract = re.sub(r"<[^>]+>", " ", abstract).strip()  # 去掉 XML 标签
+        url = it.get("URL")
+        if not url and it.get("DOI"):
+            url = "https://doi.org/" + it["DOI"]
+        return title, abstract or None, url
     except Exception as e:
-        log(f"[warn] Semantic Scholar 搜索失败: {e}")
+        log(f"[warn] Crossref 搜索失败: {e}")
         return None, None, None
 
 
@@ -83,7 +117,8 @@ def titles_match(a, b, threshold=0.35):
 
 
 def fetch_paper(paper):
-    """拿一篇论文的标题+摘要+链接。返回 (标题, 摘要, 链接)，抓不到时对应项为 None。"""
+    """拿一篇论文的标题+摘要+链接。返回 (标题, 摘要, 链接)，抓不到时对应项为 None。
+    顺序：arXiv → Semantic Scholar → Crossref，每级都校验标题是否匹配。"""
     if paper.get("arxiv"):
         title, abstract = arxiv_fetch(paper["arxiv"])
         if title and titles_match(title, paper["title"]):
@@ -93,6 +128,9 @@ def fetch_paper(paper):
         else:
             log(f"[warn] arXiv 未返回结果 ({paper['arxiv']})，转 Semantic Scholar")
     title, abstract, url = s2_fetch(paper["title"])
+    if title and titles_match(title, paper["title"]):
+        return title, abstract, url
+    title, abstract, url = crossref_fetch(paper["title"])
     if title and titles_match(title, paper["title"]):
         return title, abstract, url
     return None, None, None
@@ -206,7 +244,7 @@ def build_email(cat, paper, title, abstract, ai_text, recents, url):
         paper.get("why", ""),
         "",
         "【英文摘要】",
-        abstract if abstract else "（摘要获取失败，请通过上面的链接查看）",
+        abstract if abstract else ("（摘要获取失败，请通过上面的链接查看）" if url else "（摘要获取失败，可按标题自行搜索）"),
         "",
     ]
     if ai_text:
