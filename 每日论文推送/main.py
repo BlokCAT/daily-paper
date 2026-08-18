@@ -7,15 +7,21 @@
 """
 import os
 import sys
+import re
 import json
 import ssl
 import smtplib
+import difflib
 import xml.etree.ElementTree as ET
 from datetime import date
 from email.message import EmailMessage
 from pathlib import Path
 
 import requests
+
+# Windows 本地控制台默认 GBK，打印 emoji 会报错，统一转 UTF-8
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 BASE = Path(__file__).resolve().parent
 STATE_PATH = BASE / "state.json"
@@ -69,14 +75,27 @@ def s2_fetch(title_query):
         return None, None, None
 
 
+def titles_match(a, b, threshold=0.35):
+    """比较两个标题是否指同一篇论文（防 arXiv 编号写错时抓到别的论文）。"""
+    def norm(t):
+        return re.sub(r"[^a-z0-9]+", "", t.lower())
+    return difflib.SequenceMatcher(None, norm(a), norm(b)).ratio() >= threshold
+
+
 def fetch_paper(paper):
-    """拿一篇论文的标题+摘要+链接。paper 里有 arxiv 字段优先用它。"""
+    """拿一篇论文的标题+摘要+链接。返回 (标题, 摘要, 链接)，抓不到时对应项为 None。"""
     if paper.get("arxiv"):
         title, abstract = arxiv_fetch(paper["arxiv"])
-        if title:
+        if title and titles_match(title, paper["title"]):
             return title, abstract, f"https://arxiv.org/abs/{paper['arxiv']}"
-        # arXiv 失败再走 S2 兜底
-    return s2_fetch(paper["title"])
+        if title:
+            log(f"[warn] arXiv 返回标题与论文库不符，已忽略: {title[:60]}...")
+        else:
+            log(f"[warn] arXiv 未返回结果 ({paper['arxiv']})，转 Semantic Scholar")
+    title, abstract, url = s2_fetch(paper["title"])
+    if title and titles_match(title, paper["title"]):
+        return title, abstract, url
+    return None, None, None
 
 
 # ---------- DeepSeek 翻译 + 总结 ----------
@@ -171,14 +190,16 @@ def pick_today_paper(papers, state):
 
 # ---------- 邮件 ----------
 
-def build_email(cat, paper, title, abstract, ai_text, recents):
+def build_email(cat, paper, title, abstract, ai_text, recents, url):
     subject = f"【每日论文·{CAT_CN[cat]}】{title[:80]}"
     lines = [
         f"📄 {title}",
         f"🏷 分类：{CAT_CN[cat]} ｜ 出处：{paper.get('venue', '')} {paper.get('year', '')}",
     ]
-    if paper.get("arxiv"):
-        lines.append(f"🔗 arXiv: https://arxiv.org/abs/{paper['arxiv']}")
+    if url:
+        lines.append(f"🔗 链接: {url}")
+    elif paper.get("arxiv"):
+        lines.append(f"🔗 链接: https://arxiv.org/abs/{paper['arxiv']}")
     lines += [
         "",
         "【为什么值得读】",
@@ -228,12 +249,12 @@ def main():
 
     title, abstract, url = fetch_paper(paper)
     if title is None:
-        title, abstract = paper["title"], None
-        log("[warn] 摘要获取失败，邮件将只含题录信息")
+        title, abstract, url = paper["title"], None, None
+        log("[warn] 摘要获取失败，邮件将只含题录信息（不含外部链接）")
 
     ai_text = deepseek_process(title, abstract) if abstract else None
     recents = recent_arxiv()
-    subject, body = build_email(cat, paper, title, abstract, ai_text, recents)
+    subject, body = build_email(cat, paper, title, abstract, ai_text, recents, url)
 
     if test_mode:
         print("=" * 60)

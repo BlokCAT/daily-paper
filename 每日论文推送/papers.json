@@ -23,16 +23,16 @@
     {"title": "Plenoxels: Radiance Fields without Neural Networks", "year": 2022, "venue": "CVPR 2022", "arxiv": "2112.05131", "why": "纯体素+球谐表示辐射场，去掉神经网络也能高质量重建，观点深刻。"},
     {"title": "Direct Voxel Grid Optimization: Super-fast Convergence for Radiance Fields Reconstruction", "year": 2022, "venue": "CVPR 2022", "arxiv": "2111.11215", "why": "DVGO 直接优化体素网格，训练速度比 NeRF 快百倍。"},
     {"title": "TensoRF: Tensorial Radiance Fields", "year": 2022, "venue": "ECCV 2022", "arxiv": "2203.09517", "why": "张量分解压缩辐射场，用矩阵/向量分解获得紧凑且高质量的场景表示。"},
-    {"title": "Locally Adaptive Products for Outdoor Scenes", "year": 2023, "venue": "CVPR 2023", "arxiv": "2304.08452", "why": "Zip-NeRF 用网格+抗锯齿技术解决 NeRF 在室外大尺度场景的退化。"}
+    {"title": "Zip-NeRF: Anti-Aliased Grid-Based Neural Radiance Fields", "year": 2023, "venue": "ICCV 2023", "arxiv": "2304.06706", "why": "把 Mip-NeRF 360 的抗锯齿思想与网格模型（Instant-NGP）结合：训练快 22 倍、误差低 8~76% 的混合路线。"}
   ],
   "gaussian": [
     {"title": "3D Gaussian Splatting for Real-Time Radiance Field Rendering", "year": 2023, "venue": "SIGGRAPH 2023 (Best Paper)", "arxiv": "2308.04079", "why": "3DGS 本体：用三维高斯+可微光栅化实现实时高质量渲染，保研方向必读第 0 篇。"},
-    {"title": "Mip-Splatting: Alias-free 3D Gaussian Splatting", "year": 2024, "venue": "CVPR 2024", "arxiv": "2403.14115", "why": "解决 3DGS 的混叠问题，缩小尺度变化时的伪影。"},
-    {"title": "Scaffold-GS: Structured 3D Gaussians for View-Adaptive Rendering", "year": 2024, "venue": "CVPR 2024", "arxiv": "2402.00157", "why": "用锚点结构化高斯，减少冗余、提升抗锯齿和泛化能力。"},
+    {"title": "Mip-Splatting: Alias-free 3D Gaussian Splatting", "year": 2024, "venue": "CVPR 2024 (Best Student Paper)", "arxiv": "2311.16493", "why": "解决 3DGS 的混叠问题，缩小尺度变化时的伪影。"},
+    {"title": "Scaffold-GS: Structured 3D Gaussians for View-Adaptive Rendering", "year": 2024, "venue": "CVPR 2024 (Highlight)", "arxiv": "2312.00109", "why": "用锚点结构化高斯，减少冗余、提升抗锯齿和泛化能力。"},
     {"title": "2D Gaussian Splatting for Geometrically Accurate Radiance Fields", "year": 2024, "venue": "SIGGRAPH 2024", "arxiv": "2403.17888", "why": "二维高斯盘更适合拟合表面，法线恢复和几何精度大幅提升。"},
-    {"title": "SuGaR: Surface-Aligned Gaussian Splatting for Efficient 3D Mesh Reconstruction and High-Quality Mesh Rendering", "year": 2024, "venue": "CVPR 2024", "arxiv": "2312.12730", "why": "把高斯与表面对齐，能从 3DGS 直接提取高质量网格。"},
+    {"title": "SuGaR: Surface-Aligned Gaussian Splatting for Efficient 3D Mesh Reconstruction and High-Quality Mesh Rendering", "year": 2024, "venue": "CVPR 2024", "arxiv": "2311.12775", "why": "把高斯与表面对齐，能从 3DGS 直接提取高质量网格。"},
     {"title": "3D Gaussian Splatting as Markov Chain Monte Carlo", "year": 2024, "venue": "NeurIPS 2024", "arxiv": "2404.09591", "why": "从 MCMC 采样视角重构 3DGS 训练，解决高斯特性的死区问题。"},
-    {"title": "pixelSplat: 3D Gaussian Splats from Image Pairs for Scalable Generalizable 3D Reconstruction", "year": 2024, "venue": "CVPR 2024", "arxiv": "2312.07737", "why": "两视图直接前馈预测高斯场，泛化 3D 重建的代表作。"},
+    {"title": "pixelSplat: 3D Gaussian Splats from Image Pairs for Scalable Generalizable 3D Reconstruction", "year": 2024, "venue": "CVPR 2024", "arxiv": "2312.12337", "why": "两视图直接前馈预测高斯场，泛化 3D 重建的代表作。"},
     {"title": "Gaussian Splatting SLAM", "year": 2024, "venue": "CVPR 2024", "arxiv": "2312.06741", "why": "3DGS 做实时 SLAM 的开山工作，实时建图+渲染。"},
     {"title": "Deformable 3D Gaussians for High-Fidelity Monocular Dynamic Scene Reconstruction", "year": 2024, "venue": "CVPR 2024", "arxiv": "2309.13101", "why": "把 3DGS 推广到动态场景（4D），单目动态重建代表。"},
     {"title": "Splatter Image: Ultra-Fast Single-View 3D Reconstruction", "year": 2024, "venue": "CVPR 2024", "arxiv": "2312.13150", "why": "单张图直接生成高斯泼溅，把 3DGS 当成图像预测问题。"},
@@ -61,7 +61,7 @@
     {"title": "Multiview Neural Surface Reconstruction by Disentangling Geometry and Appearance", "year": 2020, "venue": "NeurIPS", "arxiv": "2003.09852", "why": "IDR：把几何与外观解耦，神经隐式表面重建的重要一环。"},
     {"title": "NeuS: Learning Neural Implicit Surfaces by Volume Rendering for Multi-view Reconstruction", "year": 2021, "venue": "NeurIPS", "arxiv": "2106.10689", "why": "用体渲染重建 SDF 隐式表面，无掩码高精度重建，NeuS 家族的开端。"},
     {"title": "PlenOctrees for Real-time Rendering of Neural Radiance Fields", "year": 2021, "venue": "ICCV", "arxiv": "2103.14024", "why": "八叉树压缩神经场，NeRF 走向实时的早期代表。"},
-    {"title": "NeuS2: Fast Learning of Neural Implicit Surfaces for Multi-view Reconstruction", "year": 2023, "venue": "ICCV", "arxiv": "2212.05251", "why": "NeuS 的加速版：多分辨率哈希+高效剔除，分钟级神经表面重建。"},
+    {"title": "NeuS2: Fast Learning of Neural Implicit Surfaces for Multi-view Reconstruction", "year": 2023, "venue": "ICCV 2023", "arxiv": "2212.05231", "why": "NeuS 的加速版：多分辨率哈希+高效剔除，分钟级神经表面重建。"},
     {"title": "Neuralangelo: High-Fidelity Neural Surface Reconstruction", "year": 2023, "venue": "CVPR", "arxiv": "2306.03092", "why": "多分辨率哈希编码+渐进优化做表面重建，细节恢复大幅超越前作。"}
   ]
 }
